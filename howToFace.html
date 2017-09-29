@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+	<link rel="stylesheet" type="text/css" href="style.css">
+    <title>Android Face API</title>
+  </head>
+  <body>
+  <div id="writing">
+    <font size="7"> Basic Guide on Android's Face Detection API </font>
+	<p>Hello.  Today we will be learning about making a simple Android application using Android's <a href="https://developer.android.com/reference/android/media/FaceDetector.html">face</a> detection API.<br>
+	I use android studio.  A great starting place if you have never made an app before is <a href="https://developer.android.com/training/basics/firstapp/index.html">here</a>.<br><br>
+	First off, you will need to be able to select an image from your phone's gallery.  I used a combination of <a href="http://viralpatel.net/blogs/pick-image-from-galary-android-app/">this</a> and <a href="http://stackoverflow.com/questions/10473823/android-get-image-from-gallery-into-imageview">this</a><br>
+	First, you will need to add a button to your project's main XML:<br></p>
+	</div>
+	<div id="code">
+        android:text="Get Picture"<br>
+        android:onClick="getPicture"<br>
+        android:layout_width="wrap_content"<br>
+        android:layout_height="wrap_content"<br>
+        android:id="@+id/galleryButton"<br>
+        style="@style/Widget.AppCompat.Button"<br>
+        android:visibility="visible"<br>
+        android:layout_alignParentBottom="true"<br>
+        android:layout_centerHorizontal="true" <br>
+    </div>
+	<div id="writing">
+	<img src="getpic.png" alt="Button" style="width:420px;height:680px;">
+	<p> Button Screen<br></p>
+	<p>Now, you'll have to implement the "getPicture" method associated with the button.  The intent lets your phone know that<br>
+	you'll be using its resources:<br></p>
+  <div id="code">
+    <pre>
+//button pressed to get picture<br>
+    public void getPicture(View view) {<br>
+        // Do something in response to button<br>
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);<br>
+
+        startActivityForResult(intent, RESULT_LOAD_IMAGE);<br>
+    }<br>
+  </pre></div>
+  <div id="writing">
+  <img src="gallery.png" alt="Gallery" style="width:420px;height:680px;">
+  <p> Gallery<br></p>
+  <p> Now you'll need a method to handle the activity, once the user has selected an image:<br>
+  </p>
+  </div>
+  <div id="code"><pre>
+  @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == RESULT_LOAD_IMAGE && resultCode == RESULT_OK && null != data) {
+            Uri selectedImage = data.getData();
+            String[] filePathColumn = {MediaStore.Images.Media.DATA};
+
+            Cursor cursor = getContentResolver().query(selectedImage,
+                    filePathColumn, null, null, null);
+            cursor.moveToFirst();
+
+            int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+            String picturePath = cursor.getString(columnIndex);
+            cursor.close();
+
+            ImageView imageView = (ImageView) findViewById(R.id.imageView);
+            bmp = null;
+            try {
+                bmp = getBitmapFromUri(selectedImage);
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+
+            imageView.setImageBitmap(bmp);
+	    }
+	}
+  </pre></div>
+  <div id="writing">
+  <br>
+  <p>Here we call getBitmapFromUri which basically takes the image stored in the gallery and converts it to a bitmap for our use:<br>
+  </div>
+  <div id="code"><pre>
+  private Bitmap getBitmapFromUri(Uri uri) throws IOException {
+        ParcelFileDescriptor parcelFileDescriptor =
+                getContentResolver().openFileDescriptor(uri, "r");
+        FileDescriptor fileDescriptor = parcelFileDescriptor.getFileDescriptor();
+        Bitmap image = BitmapFactory.decodeFileDescriptor(fileDescriptor);
+
+        parcelFileDescriptor.close();
+        return image;
+    }
+  </div></pre>
+  <div id="writing">
+  <br>
+  <img src="emily.png" alt="Emily" style="width:420px;height:680px;">
+  <p> Selected Image<br></p>
+  <p>Now that an image has been selected, the user needs to be able to do something with it.<br>
+  I implemented a longTouch event that would trigger the app to try and detect a face:
+  </div>
+  <div id="code"><pre>
+  View myView = findViewById(R.id.imageView);
+        myView.setOnLongClickListener(new View.OnLongClickListener(){
+
+            @Override
+            public boolean onLongClick(View v) {
+                doImage();
+                return true;
+            }
+
+        });
+  </div></pre>
+  <div id="writing">
+  <br>
+  <p>The XML for the imageView:</p>
+  </div>
+  <div id="code"><pre>
+		android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/imageView"
+        android:longClickable="true"
+</div></pre>
+
+<div id="writing">
+<br>
+<p>In the "doImage" method, I have a vibrate feedback to alert the user that the phone knows a long touch is happening and that a face is found.<br>
+If a face is not detected, a message comes up to let the user know.  Here we also remove the visibility of the "Get Picture"<br>
+button to have less clutter on the screen with the picture.<br></p>
+
+</div>
+
+<div id="code"><pre>
+private void doImage(){
+        if(bmp != null) {
+            isFace = isFacePresent(converted);
+            if(isFace){
+                //vibrate for user feedback
+                vib.vibrate(500);
+                galleryButton.setVisibility(View.GONE);
+                }
+            }
+            else //alert there is no face found
+            {
+                AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this).create();
+                //alertDialog.setTitle("");
+                alertDialog.setMessage("No faces found.");
+                alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                            }
+                        });
+                alertDialog.show();
+            }
+        }
+    }
+</pre></div>
+
+<div id="writing">
+<br>
+<p>As you can see, doImage also calls isFacePresent, which returns a boolean.</p>
+</div>
+
+<div id="code"><pre>
+private boolean isFacePresent(Bitmap b)
+    {
+        faceDetector = new FaceDetector(b.getWidth(), b.getHeight(), 10);
+        faces = new FaceDetector.Face[10];
+        numberOfFaces = faceDetector.findFaces(b, faces);
+        if(numberOfFaces > 0)
+        {
+            return true;
+        }
+        return false;
+    }
+  </pre></div>
+  
+  <div id="writing">
+  <br><p>
+  Here we initialize our FaceDetector using the bitmap width and height.  I set 10 as an arbitarary maximum number of faces.<br>
+When the FaceDetector.Face[] array is initialized, the array size must be equal to the third parameter in the FaceDetector.<br>
+The ".findFaces" returns an int with the same bitmap parameter and puts them into the array.  This returns a boolean that we used<br>
+to decide if the phone should vibrate or give the "no faces detected" message as feedback to the user.  If you try to run the code<br>
+at this point, you will see that numberOfFaces is always coming back as zero.  This is because the bitmap needs to be <a href="http://stackoverflow.com/questions/15058905/converting-bitmap-in-memory-to-bitmap-with-bitmap-config-rgb-565">formatted</a>.<br>
+We can now add to our onActivityResult:  
+  </div>
+  <div id="code"><pre>
+ converted = convert(bmp, Bitmap.Config.RGB_565);
+ imageView.setImageBitmap(converted);
+  </pre></div>
+<div id="writing">
+<br>
+<p> The convert method sets the bitmap to a different configuration:
+</div>
+  <div id="code"><pre>
+  private Bitmap convert(Bitmap b, Bitmap.Config bitCon)
+    {
+        Bitmap bitmap = Bitmap.createBitmap(b.getWidth(),b.getHeight(),bitCon);
+        c = new Canvas(bitmap);
+        Paint p = new Paint();
+        p.setColor(Color.BLACK);
+        c.drawBitmap(b, 0, 0, p);
+        return bitmap;
+    }
+  </div></pre>
+  
+  <div id="writing">
+  <br>
+  <p>Now we can use some of the faceDetector methods.  At this point you will see a green rectangle drawn around the eyes.<br>
+  FaceDetector.Face has a method for getting the midpoint between the eyes and the distance between the eyes.  This way you can<br>
+  easily set up a rectangle around them to make sure it is looking right.  I chose to divide the y side of things by 3 because it<br>
+  looked better, in my opinion, especially for the sunglasses I had planned to add later on:</p>
+  </div>
+  
+  <div id="code"><pre>
+for(int i = 0; i < numberOfFaces; i++){
+                    float eyeDistance = faces[i].eyesDistance();
+
+                    faces[i].getMidPoint(midPoint);
+                    Paint myPaint = new Paint();
+                    myPaint.setColor(Color.GREEN);
+                    myPaint.setStyle(Paint.Style.STROKE);
+                    myPaint.setStrokeWidth(5);
+                    c.drawRect(midPoint.x - eyeDistance, midPoint.y - eyeDistance / 3, midPoint.x + eyeDistance, midPoint.y + eyeDistance / 3, myPaint);
+
+  </pre></div>
+  
+  <div id="writing">
+  <br>
+  <img src="rect.png" alt="Rect" style="width:420px;height:680px;">
+  <p> Face with Rectangle (note: button is not visible)<br></p>
+  <p> Next, I modified the script above to comment out the green rectangle and add my pre-drawn sunglasses using the same<br>
+  rectangle size that I used above.  This was a pretty easy solution:</p>
+  </div>
+  
+  <div id="code"><pre>
+  //c.drawRect(midPoint.x - eyeDistance, midPoint.y - eyeDistance / 3, midPoint.x + eyeDistance, midPoint.y + eyeDistance / 3, myPaint);
+
+  Drawable drawable = getResources().getDrawable((R.drawable.ic_action_name));
+  drawable.setBounds((int)(midPoint.x - eyeDistance - 100), (int)((midPoint.y - eyeDistance) - 100), (int)(midPoint.x + eyeDistance + 100), (int)((midPoint.y + eyeDistance) + 100));
+  drawable.draw(c);
+  </pre></div>
+  <div id="writing">
+  <img src="kirk.png" alt="Kirk" style="width:420px;height:680px;">
+  <p> Glasses in place of rectangle<br></p>
+  <p> To add an image to the project, you will need to right click on res (in the android project window) and add a new image asset.<br>
+  I also tried to use a FrameLayout in the XML file to create a second imageView on top of the imageView containing the image<br>
+  that the user picked.  This was successful, but getting the sunglasses to go to the right spot was not!</p>
+  </div>
+  
+  <div id="code"><pre>
+  //glasses.setScaleX(eyeDistance/50);
+  //glasses.setScaleY(eyeDistance/50);
+  //glasses.setTranslationX(midPoint.x - eyeDistance);
+  //glasses.setTranslationY(midPoint.y - 1.5f * eyeDistance);
+  //glasses.setVisibility(View.VISIBLE);
+  </pre></div>
+  <div id="writing">
+  <br>
+  <img src="me.png" alt="Me" style="width:420px;height:680px;">
+  <p> Took a lot of guesses to get those glasses in place with the setTranslation method<br></p>
+  <p>The whole script:</p>
+  </div>
+  <div id="code"><pre>
+package com.example.owner.faces;
+
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.PointF;
+import android.graphics.drawable.Drawable;
+import android.media.FaceDetector;
+import android.net.Uri;
+import android.os.ParcelFileDescriptor;
+import android.os.Vibrator;
+import android.provider.MediaStore;
+import android.support.v7.app.AlertDialog;
+import android.support.v7.app.AppCompatActivity;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
+
+import java.io.FileDescriptor;
+import java.io.IOException;
+
+public class MainActivity extends AppCompatActivity {
+
+    private static int RESULT_LOAD_IMAGE = 1;
+    private Vibrator vib;
+    private boolean isFace = false;
+    private int numberOfFaces = 0;
+    private Bitmap bmp;
+    Button galleryButton;
+    FaceDetector faceDetector;
+    FaceDetector.Face[] faces;
+    Bitmap converted;
+    Canvas c;
+    PointF midPoint = new PointF();
+    View glasses;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        glasses = findViewById(R.id.imageGlasses);
+
+        glasses.setVisibility(View.INVISIBLE);
+
+        vib = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+
+        galleryButton = (Button)findViewById(R.id.galleryButton);
+
+        View myView = findViewById(R.id.imageView);
+        myView.setOnLongClickListener(new View.OnLongClickListener(){
+
+            @Override
+            public boolean onLongClick(View v) {
+                doImage();
+                return true;
+            }
+
+        });
+    }
+
+    //when user long presses find if there is faces
+    private void doImage(){
+        if(bmp != null) {
+            isFace = isFacePresent(converted);
+            if(isFace){
+                //vibrate for user feedback
+                vib.vibrate(500);
+                galleryButton.setVisibility(View.GONE);
+
+                for(int i = 0; i < numberOfFaces; i++){
+                    float eyeDistance = faces[i].eyesDistance();
+
+                    faces[i].getMidPoint(midPoint);
+                    Paint myPaint = new Paint();
+                    myPaint.setColor(Color.GREEN);
+                    myPaint.setStyle(Paint.Style.STROKE);
+                    myPaint.setStrokeWidth(5);
+                    //c.drawRect(midPoint.x - eyeDistance, midPoint.y - eyeDistance / 3, midPoint.x + eyeDistance, midPoint.y + eyeDistance / 3, myPaint);
+
+                    Drawable drawable = getResources().getDrawable((R.drawable.ic_action_name));
+                    drawable.setBounds((int)(midPoint.x - eyeDistance - 100), (int)((midPoint.y - eyeDistance) - 100), (int)(midPoint.x + eyeDistance + 100), (int)((midPoint.y + eyeDistance) + 100));
+                    drawable.draw(c);
+
+                    //glasses.setScaleX(eyeDistance/50);
+                    //glasses.setScaleY(eyeDistance/50);
+                    //glasses.setTranslationX(midPoint.x - eyeDistance);
+                    //glasses.setTranslationY(midPoint.y - 1.5f * eyeDistance);
+                    //glasses.setVisibility(View.VISIBLE);
+                }
+            }
+            else //alert there is no face found
+            {
+                AlertDialog alertDialog = new AlertDialog.Builder(MainActivity.this).create();
+                //alertDialog.setTitle("");
+                alertDialog.setMessage("No faces found.");
+                alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                            }
+                        });
+                alertDialog.show();
+            }
+        }
+    }
+
+    //button pressed to get picture
+    public void getPicture(View view) {
+        // Do something in response to button
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+
+        startActivityForResult(intent, RESULT_LOAD_IMAGE);
+    }
+
+    //user selects image from gallery
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == RESULT_LOAD_IMAGE && resultCode == RESULT_OK && null != data) {
+            Uri selectedImage = data.getData();
+            String[] filePathColumn = {MediaStore.Images.Media.DATA};
+
+            Cursor cursor = getContentResolver().query(selectedImage,
+                    filePathColumn, null, null, null);
+            cursor.moveToFirst();
+
+            int columnIndex = cursor.getColumnIndex(filePathColumn[0]);
+            String picturePath = cursor.getString(columnIndex);
+            cursor.close();
+
+            ImageView imageView = (ImageView) findViewById(R.id.imageView);
+            bmp = null;
+            try {
+                bmp = getBitmapFromUri(selectedImage);
+            } catch (IOException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+
+            //imageView.setImageBitmap(bmp);
+
+            converted = convert(bmp, Bitmap.Config.RGB_565);
+            imageView.setImageBitmap(converted);
+        }
+    }
+
+    //convert bitmap so faces can be detected
+    private Bitmap convert(Bitmap b, Bitmap.Config bitCon)
+    {
+        Bitmap bitmap = Bitmap.createBitmap(b.getWidth(),b.getHeight(),bitCon);
+        c = new Canvas(bitmap);
+        Paint p = new Paint();
+        p.setColor(Color.BLACK);
+        c.drawBitmap(b, 0, 0, p);
+        return bitmap;
+    }
+
+    //returns bitmap from URI
+    private Bitmap getBitmapFromUri(Uri uri) throws IOException {
+        ParcelFileDescriptor parcelFileDescriptor =
+                getContentResolver().openFileDescriptor(uri, "r");
+        FileDescriptor fileDescriptor = parcelFileDescriptor.getFileDescriptor();
+        Bitmap image = BitmapFactory.decodeFileDescriptor(fileDescriptor);
+
+        parcelFileDescriptor.close();
+        return image;
+    }
+
+    //detects if there is a face
+    private boolean isFacePresent(Bitmap b)
+    {
+        faceDetector = new FaceDetector(b.getWidth(), b.getHeight(), 10);
+        faces = new FaceDetector.Face[10];
+        numberOfFaces = faceDetector.findFaces(b, faces);
+        if(numberOfFaces > 0)
+        {
+            return true;
+        }
+        return false;
+    }
+}
+
+
+  </pre></div>
+  
+  <div id="writing">
+  <br>
+  <p> And the XML: <br></p>
+  </div>
+  
+  <div id="code"><pre>
+   	&lt;?xml version="1.0" encoding="utf-8"?>
+ 	&lt;RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/activity_main"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    android:paddingLeft="@dimen/activity_horizontal_margin"
+    android:paddingRight="@dimen/activity_horizontal_margin"
+    android:paddingTop="@dimen/activity_vertical_margin"
+    tools:context="com.example.owner.faces.MainActivity">
+     	&lt;FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+        android:layout_width="fill_parent"
+        android:layout_height="fill_parent">
+     	&lt;ImageView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:id="@+id/imageView"
+        android:longClickable="true"
+        />
+     	&lt;ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/imageGlasses"
+        android:layout_alignTop="@id/imageView"
+        android:layout_alignLeft="@id/imageView"
+        android:layout_alignRight="@id/imageView"
+        android:layout_alignBottom="@id/imageView"
+        android:scaleType="fitXY"
+        android:src="@drawable/ic_action_name"
+        />
+     	&lt;/FrameLayout>
+     	&lt;Button
+        android:text="Get Picture"
+        android:onClick="getPicture"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:id="@+id/galleryButton"
+        style="@style/Widget.AppCompat.Button"
+        android:visibility="visible"
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true" />
+ 	&lt;/RelativeLayout>
+
+  </pre></div>
+  <br>
+  <br>
+  <div id="writing">
+  <p>Here are some helpful links:<br>
+  <a href="https://developer.android.com/reference/android/hardware/camera2/params/Face.html">Face</a><br>
+  <a href="https://developer.android.com/reference/android/media/FaceDetector.Face.html">FaceDetector.Face</a><br>
+  <a href="https://developer.android.com/reference/android/graphics/drawable/Drawable.html">Drawable</a><br>
+  <a href="https://developer.android.com/reference/android/view/GestureDetector.OnGestureListener.html#onLongPress(android.view.MotionEvent)">LongPress</a><br>
+  <a href="http://stackoverflow.com/questions/5775973/how-can-i-request-the-vibrate-permission">Vibrate</a><br>
+  <a href="http://stackoverflow.com/questions/15058905/converting-bitmap-in-memory-to-bitmap-with-bitmap-config-rgb-565">Bitmap Config</a><br>
+  <a href="http://stackoverflow.com/questions/26097513/android-simple-alert-dialog">Alert Dialog</a><br>
+  <a href="http://stackoverflow.com/questions/3512651/how-we-place-the-image-in-rectangle-in-canvas">Stack Overflow on Drawable</a><br>
+  <a href="http://stackoverflow.com/questions/29047902/how-to-add-an-image-to-the-drawable-folder-in-android-studio">Add an Image to Android Studio Project</a><br>
+  </div>
+  </body>
+</html>
